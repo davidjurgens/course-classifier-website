@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Classification Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .chart-container canvas {
+            max-width: 100%;
+        }
+
+        .school-chart-container canvas {
+            min-width: 600px;
+        }
+
+        /* Custom scrollbar for chart container */
+        .chart-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .chart-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .chart-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        .chart-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Ensure chart container has proper dimensions */
+        .chart-container {
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            background: #fff;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="bi bi-mortarboard me-2"></i>
+                Course Classifier
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('index') }}">
+                    <i class="bi bi-arrow-left me-1"></i>
+                    Back to Upload
+                </a>
+                <button class="btn btn-sm btn-outline-light ms-2" onclick="toggleClassifyPanel()">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Classify a Course
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Single Course Classification Panel -->
+    <div id="classifyPanel" class="container mt-3" style="display: none;">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Classify a Single Course</h5>
+                        <button type="button" class="btn btn-sm btn-light" onclick="toggleClassifyPanel()">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="dashboardCourseText" class="form-label">Course Title or Description</label>
+                            <textarea class="form-control" id="dashboardCourseText" rows="3" placeholder="e.g., Introduction to Data Structures and Algorithms"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Select Classifiers</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="dashboard-model-two-digit" value="two-digit" checked>
+                                <label class="form-check-label" for="dashboard-model-two-digit">Two-digit</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="dashboard-model-four-digit" value="four-digit">
+                                <label class="form-check-label" for="dashboard-model-four-digit">Four-digit</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="dashboard-model-six-digit" value="six-digit" checked>
+                                <label class="form-check-label" for="dashboard-model-six-digit">Six-digit</label>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-success" onclick="classifySingleCourseDashboard()">Classify Course</button>
+
+                        <div id="dashboardCourseResults" class="mt-3" style="display: none;">
+                            <div class="card border-success">
+                                <div class="card-body">
+                                    <h6 class="card-title text-success">Classification Results</h6>
+                                    <div id="dashboardCourseResultsContent"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mt-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h2 class="mb-0">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Course Classification Dashboard
+                        </h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h3 class="text-primary">{{ data.stats.total_courses }}</h3>
+                                    <p class="mb-0">Total Courses</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h3 class="text-success">{{ data.stats.total_schools }}</h3>
+                                    <p class="mb-0">Schools</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-center">
+                                    <h5>File: {{ filename }}</h5>
+                                    <a href="{{ url_for('download') }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-download me-1"></i>
+                                        Download Results
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Course Search -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-search me-2"></i>
+                            Search Courses
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" id="courseSearch"
+                                       placeholder="Search by course title or description..." onkeypress="handleSearchKeypress(event)">
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-primary w-100" onclick="searchCourses()">
+                                    <i class="bi bi-search me-1"></i>
+                                    Search
+                                </button>
+                            </div>
+                        </div>
+                        <div id="searchResults" class="mt-3" style="display: none;">
+                            <h6>Search Results:</h6>
+                            <div id="searchResultsList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Six-Digit CCM Histogram -->
+        {% if data.six_digit_histogram %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-bar-chart-steps me-2"></i>
+                            Most Common Six-Digit CCM Codes
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="cipHistogramChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Faceted Filtering -->
+        {% if data.hierarchical_cips %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-funnel me-2"></i>
+                            CCM Code Filtering
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label">Two-Digit CCM Code</label>
+                                <select class="form-select" id="twoDigitFilter" onchange="updateFourDigitFilter()">
+                                    <option value="">All Two-Digit Codes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Four-Digit CCM Code</label>
+                                <select class="form-select" id="fourDigitFilter" onchange="updateSixDigitFilter()">
+                                    <option value="">All Four-Digit Codes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Six-Digit CCM Code</label>
+                                <select class="form-select" id="sixDigitFilter" onchange="filterVisualization()">
+                                    <option value="">All Six-Digit Codes</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                                <i class="bi bi-x-circle me-1"></i>
+                                Clear Filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Charts Section -->
+        <div class="row">
+            {% for level in ['two-digit', 'four-digit', 'six-digit'] %}
+                {% if level + '_breakdown' in data %}
+                <div class="col-12 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-bar-chart me-2"></i>
+                                {{ level.title() }} CCM Code Breakdown by School
+                                {% if level == 'two-digit' %}
+                                <small class="text-muted">(Top 20 Schools)</small>
+                                {% endif %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if level in ['two-digit', 'four-digit', 'six-digit'] %}
+                            <!-- Vertically scrollable chart container with separate charts per school -->
+                            <div class="chart-container" style="overflow-y: auto; overflow-x: hidden; height: 600px; max-height: 600px;">
+                                <div id="{{ level }}ChartsContainer"></div>
+                            </div>
+                            {% else %}
+                            <canvas id="{{ level }}Chart" width="400" height="200"></canvas>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <!-- Related Courses Modal -->
+        <div class="modal fade" id="relatedCoursesModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Related Courses</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="relatedCoursesContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CCM Details Modal -->
+        <div class="modal fade" id="cipDetailsModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="cipDetailsTitle">CCM Code Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="cipDetailsContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Dashboard data
+        const dashboardData = {{ data | tojson }};
+        console.log('Dashboard data loaded:', dashboardData);
+        console.log('Six-digit histogram data:', dashboardData.six_digit_histogram);
+        console.log('Six-digit breakdown data:', dashboardData.six_digit_breakdown);
+        console.log('Hierarchical CIPs data:', dashboardData.hierarchical_cips);
+
+        let charts = {};
+        let currentFilters = {
+            twoDigit: '',
+            fourDigit: '',
+            sixDigit: ''
+        };
+
+        // Single course classification functions
+        function toggleClassifyPanel() {
+            const panel = document.getElementById('classifyPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function classifySingleCourseDashboard() {
+            const courseText = document.getElementById('dashboardCourseText').value.trim();
+            if (!courseText) {
+                alert('Please enter a course title or description');
+                return;
+            }
+
+            // Get selected models
+            const selectedModels = [];
+            if (document.getElementById('dashboard-model-two-digit').checked) selectedModels.push('two-digit');
+            if (document.getElementById('dashboard-model-four-digit').checked) selectedModels.push('four-digit');
+            if (document.getElementById('dashboard-model-six-digit').checked) selectedModels.push('six-digit');
+
+            if (selectedModels.length === 0) {
+                alert('Please select at least one classifier');
+                return;
+            }
+
+            // Show loading state
+            const resultsDiv = document.getElementById('dashboardCourseResults');
+            const resultsContent = document.getElementById('dashboardCourseResultsContent');
+            resultsContent.innerHTML = '<p>Classifying...</p>';
+            resultsDiv.style.display = 'block';
+
+            // Call API
+            fetch('/api/classify-single', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    course_text: courseText,
+                    models: selectedModels
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    resultsContent.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                    return;
+                }
+
+                let html = '<table class="table table-bordered">';
+                html += '<thead><tr><th>Classifier</th><th>Classification</th></tr></thead><tbody>';
+
+                for (const [model, result] of Object.entries(data.results)) {
+                    if (result.error) {
+                        html += `<tr><td><strong>${model}</strong></td><td><span class="text-danger">Error: ${result.error}</span></td></tr>`;
+                    } else {
+                        html += `<tr><td><strong>${model}</strong></td><td>${result.classification}</td></tr>`;
+                    }
+                }
+
+                html += '</tbody></table>';
+                resultsContent.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultsContent.innerHTML = '<div class="alert alert-danger">Error classifying course. Please try again.</div>';
+            });
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            initializeFilters();
+            initializeHistogram();
+        });
+
+        function destroyCharts() {
+            // Destroy all existing charts
+            Object.keys(charts).forEach(chartKey => {
+                if (charts[chartKey]) {
+                    charts[chartKey].destroy();
+                    charts[chartKey] = null;
+                }
+            });
+        }
+
+        function initializeCharts() {
+            {% for level in ['two-digit', 'four-digit', 'six-digit'] %}
+                {% if level + '_breakdown' in data %}
+                // Create separate charts for each school
+                const {{ level.replace('-', '') }}Container = document.getElementById('{{ level }}ChartsContainer');
+                {{ level.replace('-', '') }}Container.innerHTML = ''; // Clear existing content
+
+                    const {{ level.replace('-', '') }}Schools = dashboardData['{{ level }}_breakdown'].schools;
+                    const {{ level.replace('-', '') }}CipCodes = dashboardData['{{ level }}_breakdown'].cip_codes;
+                    const {{ level.replace('-', '') }}ChartData = dashboardData['{{ level }}_breakdown'].chart_data;
+
+                    // Get CCM names mapping
+                    const {{ level.replace('-', '') }}CcmNames = dashboardData['ccm_names'] ? dashboardData['ccm_names']['{{ level }}'] : {};
+                    console.log(`DEBUG {{ level }} CCM Names:`, {{ level.replace('-', '') }}CcmNames);
+                    console.log(`DEBUG {{ level }} Sample keys:`, Object.keys({{ level.replace('-', '') }}CcmNames).slice(0, 5));
+                    console.log(`DEBUG {{ level }} CipCodes array:`, {{ level.replace('-', '') }}CipCodes);
+
+                    // Check sample school data
+                    if ({{ level.replace('-', '') }}ChartData && {{ level.replace('-', '') }}ChartData[0]) {
+                        console.log(`DEBUG {{ level }} Sample school cip_codes keys:`, Object.keys({{ level.replace('-', '') }}ChartData[0].cip_codes));
+                    }
+
+                {{ level.replace('-', '') }}Schools.forEach((school, schoolIndex) => {
+                    // Create a container for each school's chart
+                    const schoolContainer = document.createElement('div');
+                    schoolContainer.className = 'school-chart-container mb-4';
+                    schoolContainer.style.cssText = 'border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; background: #f8f9fa;';
+
+                    // Add school title
+                    const schoolTitle = document.createElement('h6');
+                    schoolTitle.textContent = school;
+                    schoolTitle.style.cssText = 'margin-bottom: 15px; font-weight: bold; color: #495057;';
+                    schoolContainer.appendChild(schoolTitle);
+
+                    // Create canvas for this school with proper dimensions
+                    const canvasWrapper = document.createElement('div');
+                    canvasWrapper.style.cssText = 'width: 100%; height: 300px; position: relative; overflow-x: auto;';
+
+                    const canvas = document.createElement('canvas');
+                    canvas.id = `{{ level }}Chart_${schoolIndex}`;
+
+                    canvasWrapper.appendChild(canvas);
+                    schoolContainer.appendChild(canvasWrapper);
+                    {{ level.replace('-', '') }}Container.appendChild(schoolContainer);
+
+                    // Create chart for this school
+                    const ctx = canvas.getContext('2d');
+                    const schoolData = {{ level.replace('-', '') }}ChartData.find(s => s.school === school);
+
+                    if (schoolData) {
+                        // Prepare data for this school and sort by values (largest to smallest)
+                        const cipDataPairs = {{ level.replace('-', '') }}CipCodes.map(cip => ({
+                            cip: cip,
+                            count: schoolData.cip_codes[cip] || 0
+                        }));
+
+                        // Sort by count in descending order
+                        cipDataPairs.sort((a, b) => b.count - a.count);
+
+                        // Limit to top 20 most common CCM codes
+                        const topCipDataPairs = cipDataPairs.slice(0, 20);
+
+                        // Prepare data with sorted CIP codes
+                        const sortedCipCodes = topCipDataPairs.map(pair => pair.cip);
+                        const sortedCounts = topCipDataPairs.map(pair => pair.count);
+
+                        // Create labels with full CCM names
+                        const labels = sortedCipCodes.map(cip => {
+                            // Convert to string for consistent lookup
+                            const cipStr = String(cip);
+                            const ccmName = {{ level.replace('-', '') }}CcmNames[cipStr];
+                            console.log(`DEBUG lookup: cipStr='${cipStr}', found=${!!ccmName}, value=${ccmName}`);
+                            return ccmName ? `${cipStr}: ${ccmName}` : cipStr;
+                        });
+                        console.log(`DEBUG Final labels for ${school}:`, labels.slice(0, 3));
+                        console.log(`DEBUG Sorted CIP codes:`, sortedCipCodes);
+
+                        const schoolChartData = {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Course Count',
+                                data: sortedCounts,
+                                backgroundColor: sortedCipCodes.map(cip => getConsistentColor(cip)),
+                                borderColor: sortedCipCodes.map(cip => getConsistentBorderColor(cip)),
+                                borderWidth: 1
+                            }]
+                        };
+
+                        try {
+                            charts[`{{ level.replace('-', '') }}_${schoolIndex}`] = new Chart(ctx, {
+                                type: 'bar',
+                                data: schoolChartData,
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                        y: {
+                                            beginAtZero: true,
+                                            ticks: {
+                                                stepSize: 1,
+                                                font: {
+                                                    size: 10
+                                                }
+                                            },
+                                            title: {
+                                                display: true,
+                                                text: 'Number of Courses',
+                                                font: {
+                                                    size: 11
+                                                }
+                                            }
+                                        },
+                                        x: {
+                                            ticks: {
+                                                font: {
+                                                    size: 10,
+                                                    weight: 'normal'
+                                                },
+                                                maxRotation: 45,
+                                                minRotation: 45,
+                                                autoSkip: false,
+                                                maxTicksLimit: 20,
+                                                callback: function(value, index, values) {
+                                                    const label = this.getLabelForValue(value);
+                                                    // Split long labels into multiple lines
+                                                    if (label && label.length > 30) {
+                                                        const words = label.split(' ');
+                                                        const lines = [];
+                                                        let currentLine = '';
+                                                        for (let word of words) {
+                                                            if ((currentLine + ' ' + word).length > 30 && currentLine) {
+                                                                lines.push(currentLine);
+                                                                currentLine = word;
+                                                            } else {
+                                                                currentLine += (currentLine ? ' ' : '') + word;
+                                                            }
+                                                        }
+                                                        if (currentLine) lines.push(currentLine);
+                                                        return lines;
+                                                    }
+                                                    return label;
+                                                }
+                                            },
+                                            title: {
+                                                display: true,
+                                                text: 'CCM Code',
+                                                font: {
+                                                    size: 12
+                                                }
+                                            }
+                                        }
+                                    },
+                                    plugins: {
+                                        legend: {
+                                            display: false
+                                        },
+                                        tooltip: {
+                                            callbacks: {
+                                                label: function(context) {
+                                                    const cipCode = sortedCipCodes[context.dataIndex];
+                                                    const ccmName = {{ level.replace('-', '') }}CcmNames[cipCode];
+                                                    const baseLabel = ccmName ? `${cipCode}: ${ccmName}` : cipCode;
+                                                    return `${baseLabel}: ${context.parsed.y} courses`;
+                                                },
+                                                afterBody: function(context) {
+                                                    const cipCode = sortedCipCodes[context[0].dataIndex];
+                                                    if (schoolData.course_titles && schoolData.course_titles[cipCode]) {
+                                                        const courseTitles = schoolData.course_titles[cipCode];
+                                                        if (courseTitles.length > 0) {
+                                                            let tooltipText = '\n\nCourse Titles:';
+                                                            courseTitles.slice(0, 5).forEach(title => {
+                                                                tooltipText += '\n• ' + title;
+                                                            });
+                                                            if (courseTitles.length > 5) {
+                                                                tooltipText += '\n... (showing first 5)';
+                                                            }
+                                                            return tooltipText.split('\n');
+                                                        }
+                                                    }
+                                                    return '';
+                                                }
+                                            }
+                                        }
+                                    },
+                                    barThickness: 30,
+                                    maxBarThickness: 50,
+                                    layout: {
+                                        padding: {
+                                            left: 5,
+                                            right: 5,
+                                            top: 5,
+                                            bottom: 5
+                                        }
+                                    }
+                                }
+                            });
+                        } catch (error) {
+                            console.error(`Error creating chart for ${school}:`, error);
+                        }
+                    }
+                });
+
+                console.log(`{{ level }} charts: Created ${ {{ level.replace('-', '') }}Schools.length} separate charts`);
+                {% endif %}
+            {% endfor %}
+        }
+
+        function initializeHistogram() {
+            {% if data.six_digit_histogram %}
+            const histogramCtx = document.getElementById('cipHistogramChart').getContext('2d');
+
+            // Get CCM names mapping
+            const ccmNames = dashboardData['ccm_names'] ? dashboardData['ccm_names']['six-digit'] : {};
+
+            // Create labels with names if available
+            const labelsWithNames = dashboardData['six_digit_histogram'].map(item => {
+                const ccmName = ccmNames[item.cip_code];
+                return ccmName ? `${item.cip_code}: ${ccmName}` : item.cip_code;
+            });
+
+            charts.histogram = new Chart(histogramCtx, {
+                type: 'bar',
+                data: {
+                    labels: labelsWithNames,
+                    datasets: [{
+                        label: 'Number of Courses',
+                        data: dashboardData['six_digit_histogram'].map(item => item.count),
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 10
+                                },
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const item = dashboardData['six_digit_histogram'][context.dataIndex];
+                                    return `Percentage: ${item.percentage}%`;
+                                }
+                            }
+                        }
+                    },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const cipCode = dashboardData['six_digit_histogram'][index].cip_code;
+                            showCipDetails(cipCode);
+                        }
+                    }
+                }
+            });
+            {% endif %}
+        }
+
+        function initializeFilters() {
+            {% if data.hierarchical_cips %}
+            // Populate two-digit filter
+            const twoDigitSelect = document.getElementById('twoDigitFilter');
+            Object.keys(dashboardData.hierarchical_cips.two_to_four || {}).forEach(twoDigit => {
+                const option = document.createElement('option');
+                option.value = twoDigit;
+                option.textContent = twoDigit;
+                twoDigitSelect.appendChild(option);
+            });
+            {% endif %}
+        }
+
+        function updateFourDigitFilter() {
+            const twoDigit = document.getElementById('twoDigitFilter').value;
+            const fourDigitSelect = document.getElementById('fourDigitFilter');
+            const sixDigitSelect = document.getElementById('sixDigitFilter');
+
+            // Clear dependent filters
+            fourDigitSelect.innerHTML = '<option value="">All Four-Digit Codes</option>';
+            sixDigitSelect.innerHTML = '<option value="">All Six-Digit Codes</option>';
+
+            currentFilters.twoDigit = twoDigit;
+            currentFilters.fourDigit = '';
+            currentFilters.sixDigit = '';
+
+            if (twoDigit && dashboardData.hierarchical_cips.two_to_four[twoDigit]) {
+                dashboardData.hierarchical_cips.two_to_four[twoDigit].forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.four_digit;
+                    option.textContent = item.four_digit;
+                    fourDigitSelect.appendChild(option);
+                });
+            }
+
+            filterVisualization();
+        }
+
+        function updateSixDigitFilter() {
+            const fourDigit = document.getElementById('fourDigitFilter').value;
+            const sixDigitSelect = document.getElementById('sixDigitFilter');
+
+            // Clear dependent filter
+            sixDigitSelect.innerHTML = '<option value="">All Six-Digit Codes</option>';
+
+            currentFilters.fourDigit = fourDigit;
+            currentFilters.sixDigit = '';
+
+            if (fourDigit && dashboardData.hierarchical_cips.four_to_six[fourDigit]) {
+                dashboardData.hierarchical_cips.four_to_six[fourDigit].forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.six_digit;
+                    option.textContent = item.six_digit;
+                    sixDigitSelect.appendChild(option);
+                });
+            }
+
+            filterVisualization();
+        }
+
+        function filterVisualization() {
+            const sixDigit = document.getElementById('sixDigitFilter').value;
+            currentFilters.sixDigit = sixDigit;
+
+            // Update charts based on filters
+            updateChartsWithFilters();
+        }
+
+        function updateChartsWithFilters() {
+            // This would filter the chart data based on current filters
+            // For now, we'll just log the current filters
+            console.log('Current filters:', currentFilters);
+        }
+
+        function clearFilters() {
+            document.getElementById('twoDigitFilter').value = '';
+            document.getElementById('fourDigitFilter').value = '';
+            document.getElementById('sixDigitFilter').value = '';
+
+            currentFilters = {
+                twoDigit: '',
+                fourDigit: '',
+                sixDigit: ''
+            };
+
+            // Destroy existing charts before reinitializing
+            destroyCharts();
+
+            // Reset charts to show all data
+            initializeCharts();
+        }
+
+        function showCipDetails(cipCode) {
+            console.log('showCipDetails called with cipCode:', cipCode, 'type:', typeof cipCode);
+            fetch(`/api/courses/by-cip/${cipCode}`)
+                .then(response => {
+                    console.log('API response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('API response data:', data);
+                    if (data.error) {
+                        alert('Error: ' + data.error);
+                        return;
+                    }
+
+                    document.getElementById('cipDetailsTitle').textContent = `CCM Code ${cipCode} Details`;
+
+                    let content = `
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Summary</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>Total Courses:</strong> ${data.total_courses}</p>
+                                        <p><strong>Total Schools:</strong> ${data.total_schools}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Schools Offering This CCM Code</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-unstyled">
+                                            ${data.schools.map(school => `<li>• ${school}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Courses</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-striped">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Course Subject</th>
+                                                        <th>Course Number</th>
+                                                        <th>Course Title</th>
+                                                        <th>School</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${data.courses.map(course => `
+                                                        <tr>
+                                                            <td>${course.course_subject || 'N/A'}</td>
+                                                            <td>${course.course_number || 'N/A'}</td>
+                                                            <td>${course.course_title || 'N/A'}</td>
+                                                            <td>${course.school_name || 'N/A'}</td>
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    document.getElementById('cipDetailsContent').innerHTML = content;
+
+                    const modal = new bootstrap.Modal(document.getElementById('cipDetailsModal'));
+                    modal.show();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading CCM code details');
+                });
+        }
+
+        function handleSearchKeypress(event) {
+            if (event.key === 'Enter') {
+                searchCourses();
+            }
+        }
+
+        function searchCourses() {
+            const query = document.getElementById('courseSearch').value.trim();
+            if (!query) return;
+
+            const resultsDiv = document.getElementById('searchResults');
+            const resultsList = document.getElementById('searchResultsList');
+
+            // Show loading state
+            resultsList.innerHTML = '<p class="text-muted">Searching...</p>';
+            resultsDiv.style.display = 'block';
+
+            fetch(`/api/courses/search?q=${encodeURIComponent(query)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Search results:', data);
+
+                    if (data.courses && data.courses.length > 0) {
+                        resultsList.innerHTML = data.courses.map((course, index) => {
+                            // Only show description if it exists
+                            const descriptionHtml = course.course_description ? `<p class="card-text">${course.course_description}</p>` : '';
+
+                            // Build CCM code badges
+                            const ccmBadges = [];
+                            if (course['two-digit_classification']) ccmBadges.push(`<span class="badge bg-secondary me-1">Two-Digit: ${course['two-digit_classification']}</span>`);
+                            if (course['four-digit_classification']) ccmBadges.push(`<span class="badge bg-info me-1">Four-Digit: ${course['four-digit_classification']}</span>`);
+                            if (course['six-digit_classification']) ccmBadges.push(`<span class="badge bg-primary me-1">Six-Digit: ${course['six-digit_classification']}</span>`);
+
+                            return `
+                                <div class="card mb-2">
+                                    <div class="card-body">
+                                        <h6 class="card-title">${course.course_title || 'N/A'}</h6>
+                                        ${descriptionHtml}
+                                        <div class="mb-2">
+                                            <small class="text-muted">School: ${course.school_name || 'N/A'}</small>
+                                        </div>
+
+                                        <!-- CCM Code Information -->
+                                        ${ccmBadges.length > 0 ? `
+                                            <div class="mb-2">
+                                                ${ccmBadges.join('')}
+                                            </div>
+                                        ` : ''}
+
+                                        ${course['six-digit_classification'] ? `
+                                            <button class="btn btn-sm btn-outline-primary" onclick="showCoursesWithSameCCM('${course['six-digit_classification']}')">
+                                                <i class="bi bi-link-45deg me-1"></i>
+                                                Show Courses with Same Six-Digit CCM
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                        resultsDiv.style.display = 'block';
+                    } else {
+                        resultsList.innerHTML = '<p class="text-muted">No courses found.</p>';
+                        resultsDiv.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    resultsList.innerHTML = `<div class="alert alert-danger">Error searching courses: ${error.message}</div>`;
+                    resultsDiv.style.display = 'block';
+                });
+        }
+
+        function showCoursesWithSameCCM(sixDigitCCM) {
+            // Call the existing CIP code endpoint to get courses with the same six-digit CCM
+            fetch(`/api/courses/by-cip/${sixDigitCCM}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Error: ' + data.error);
+                        return;
+                    }
+
+                    // Update the modal title and content
+                    document.getElementById('cipDetailsTitle').textContent = `Courses with Six-Digit CCM: ${sixDigitCCM}`;
+
+                    let content = `
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Summary</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>Total Courses:</strong> ${data.total_courses}</p>
+                                        <p><strong>Total Schools:</strong> ${data.total_schools}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Schools Offering This CCM Code</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-unstyled">
+                                            ${data.schools.map(school => `<li>• ${school}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">All Courses with This CCM Code</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-striped">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Course Subject</th>
+                                                        <th>Course Number</th>
+                                                        <th>Course Title</th>
+                                                        <th>School</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${data.courses.map(course => `
+                                                        <tr>
+                                                            <td>${course.course_subject || 'N/A'}</td>
+                                                            <td>${course.course_number || 'N/A'}</td>
+                                                            <td>${course.course_title || 'N/A'}</td>
+                                                            <td>${course.school_name || 'N/A'}</td>
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    document.getElementById('cipDetailsContent').innerHTML = content;
+
+                    const modal = new bootstrap.Modal(document.getElementById('cipDetailsModal'));
+                    modal.show();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading courses with same CCM code');
+                });
+        }
+
+        function showRelatedCourses(courseId) {
+            fetch(`/api/courses/${courseId}/related`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Error: ' + data.error);
+                        return;
+                    }
+
+                    const content = `
+                        <div class="row">
+                            ${data.related_courses.map(course => `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h6 class="card-title">${course.course_title || 'N/A'}</h6>
+                                            <p class="card-text">${course.course_description || 'No description available'}</p>
+                                            <small class="text-muted">School: ${course.school_name || 'N/A'}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+
+                    document.getElementById('relatedCoursesContent').innerHTML = content;
+
+                    const modal = new bootstrap.Modal(document.getElementById('relatedCoursesModal'));
+                    modal.show();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading related courses');
+                });
+        }
+
+        function getRandomColor() {
+            const colors = [
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 205, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)',
+                'rgba(255, 159, 64, 0.6)',
+                'rgba(199, 199, 199, 0.6)',
+                'rgba(83, 102, 255, 0.6)',
+                'rgba(255, 99, 255, 0.6)',
+                'rgba(99, 255, 132, 0.6)'
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // Consistent color mapping for CCM codes
+        function getConsistentColor(ccmCode) {
+            const palette = [
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 205, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)',
+                'rgba(255, 159, 64, 0.6)',
+                'rgba(199, 199, 199, 0.6)',
+                'rgba(83, 102, 255, 0.6)',
+                'rgba(255, 99, 255, 0.6)',
+                'rgba(99, 255, 132, 0.6)',
+                'rgba(132, 99, 255, 0.6)',
+                'rgba(255, 132, 99, 0.6)',
+                'rgba(99, 255, 255, 0.6)',
+                'rgba(255, 255, 99, 0.6)',
+                'rgba(132, 255, 99, 0.6)',
+                'rgba(255, 99, 99, 0.6)',
+                'rgba(99, 99, 255, 0.6)',
+                'rgba(255, 132, 255, 0.6)',
+                'rgba(132, 255, 255, 0.6)',
+                'rgba(255, 192, 128, 0.6)'
+            ];
+
+            // Convert CCM code to a hash value for consistent color selection
+            const codeStr = String(ccmCode);
+            let hash = 0;
+            for (let i = 0; i < codeStr.length; i++) {
+                hash = ((hash << 5) - hash) + codeStr.charCodeAt(i);
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+
+            return palette[Math.abs(hash) % palette.length];
+        }
+
+        function getConsistentBorderColor(ccmCode) {
+            // Same as background but with full opacity for borders
+            const bgColor = getConsistentColor(ccmCode);
+            return bgColor.replace('0.6)', '1)');
+        }
+    </script>
+</body>
+</html>
